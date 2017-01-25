@@ -27,12 +27,22 @@ app.get('/', function(req, res) {
 // get all books
 app.get('/api/books', function(req, res) {
 	
-	Book.getBooks(function(err, books) {
-		if (err) {
-			throw err;
+	client.get('books', function(err, result) {
+		if (err || result === null) {
+			Book.getBooks(function(err, books) {
+				if (err) {
+					throw err
+				}
+				client.setex('books', 60, JSON.stringify(books))
+				res.json(books);
+			});
+	
+		} else {
+			res.send(result)
 		}
-		res.json(books);
-	});
+	})
+
+	
 });
 
 app.get('/api/books/:_id', function(req, res) {
