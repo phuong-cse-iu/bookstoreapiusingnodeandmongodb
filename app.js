@@ -2,6 +2,7 @@ var express = require('express');
 var app = express();
 var bodyParser = require('body-parser');
 var mongoose = require('mongoose');
+var redis = require('redis')
 
 app.use(bodyParser.json());
 Genre = require('./models/genre');
@@ -11,6 +12,12 @@ mongoose.connect('mongodb://localhost/bookstore');
 // database object
 var db = mongoose.connection;
 
+
+client = redis.createClient()
+client.on('error', function(err) {
+	console.log("Error: " + err)
+})
+
 // get request with url: /
 app.get('/', function(req, res) {
 	res.send('Hello World!');
@@ -19,6 +26,7 @@ app.get('/', function(req, res) {
 // get request for url: /api/books
 // get all books
 app.get('/api/books', function(req, res) {
+	
 	Book.getBooks(function(err, books) {
 		if (err) {
 			throw err;
@@ -28,12 +36,33 @@ app.get('/api/books', function(req, res) {
 });
 
 app.get('/api/books/:_id', function(req, res) {
-	Book.getBookById(req.params._id, function(err, book) {
+	var id = req.params._id
+	
+	client.get(id, function(err, result) {
 		if (err) {
-			throw err;
+			throw err
+		} else {
+			// if value already exists in redis
+			if (result) {
+				
+				// res.send({"book": resultInJSON, "source": "redis cache"})
+				console.log(result)
+				res.send(result)
+			} else {
+				Book.getBookById(id, function(err, book) {
+					if (err) {
+						throw err;
+					}
+					
+					
+					client.setex(id, 60, JSON.stringify(book))
+					res.json(book)
+				});
+
+			}
 		}
-		res.json(book);
-	});
+	})
+	
 });
 
 
